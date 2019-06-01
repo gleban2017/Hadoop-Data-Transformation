@@ -1,0 +1,26 @@
+
+----------Update Credit Card Base Table--------------------
+CREATE TABLE creditcard_reporting_table AS
+SELECT t1.* FROM
+(SELECT * FROM 224_creditcard_base
+UNION ALL
+SELECT * FROM 224_creditcard_incremental) t1;
+
+INSERT OVERWRITE TABLE 224_creditcard_base SELECT * FROM creditcard_reporting_table;
+drop table creditcard_reporting_table;
+
+
+
+--------Update Time Base Table-------------------------
+INSERT OVERWRITE TABLE 224_time_base SELECT
+   timeid,
+   substring(timeid, 7, 2) AS day, 
+   substring(timeid, 5, 2) AS month,
+   (case 
+    when substring(timeid, 5, 2) BETWEEN 1 AND 3 then "Q1" 
+    when substring(timeid, 5, 2) BETWEEN 4 AND 6 then "Q2" 
+    when substring(timeid, 5, 2) BETWEEN 7 AND 9 then "Q3" 
+    when substring(timeid, 5, 2) BETWEEN 10 AND 12 then "Q4" 
+    end) quarter,
+    substring(timeid, 1, 4) AS year 
+from 224_creditcard_base;

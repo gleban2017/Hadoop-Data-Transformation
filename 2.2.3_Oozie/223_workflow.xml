@@ -1,0 +1,128 @@
+<workflow-app xmlns = "uri:oozie:workflow:0.2" name = "Extracting and modifying data from SQL">
+<start to = "Execute_Branch_SqoopJob" />
+
+ <action name="Execute_Branch_SqoopJob">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+         <prepare>
+               <delete path="hdfs://sandbox.hortonworks.com:8020/user/maria_dev/Credit_Card_System/External/CDW_SAPP_BRANCH"/>
+         </prepare>
+         <configuration>
+         	<property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+         </configuration>
+
+        <command>job --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop --exec 223_4_branchSqoopJob</command>
+        <archive>${javajar}</archive>
+    </sqoop>
+   <ok to="Execute_CreditCard_SqoopJob"/>
+   <error to = "kill_job" />
+  </action>
+
+  <action name="Execute_CreditCard_SqoopJob">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+         <prepare>
+                <delete path="hdfs://sandbox.hortonworks.com:8020/user/maria_dev/Credit_Card_System/External/CDW_SAPP_CREDITCARD"/>
+         </prepare>
+         <configuration>
+         	<property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+         </configuration>
+        <command>job --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop --exec 223_2_ccSqoopJob</command>
+        <archive>${javajar}</archive>
+    </sqoop>
+   <ok to="Execute_Customer_SqoopJob"/>
+   <error to = "kill_job" />
+  </action>
+
+
+
+  <action name="Execute_Customer_SqoopJob">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+         <prepare>
+                <delete path="hdfs://sandbox.hortonworks.com:8020/user/maria_dev/Credit_Card_System/External/CDW_SAPP_CUSTOMER"/>
+         </prepare>
+         <configuration>
+         	<property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+         </configuration>
+        <command>job --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop --exec 223_1_customerSqoopJob</command>
+        <archive>${javajar}</archive>
+    </sqoop>
+   <ok to="Execute_Time_SqoopJob"/>
+   <error to = "kill_job" />
+  </action>
+
+  <action name="Execute_Time_SqoopJob">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+         <prepare>
+                <delete path="hdfs://sandbox.hortonworks.com:8020/user/maria_dev/Credit_Card_System/External/CDW_SAPP_TIME"/>
+         </prepare>
+         <configuration>
+         	<property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+         </configuration>
+        <command>job --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop --exec 223_1_timeSqoopJob</command>
+        <archive>${javajar}</archive>
+    </sqoop>
+   <ok to="Create_External_Tables"/>
+   <error to = "kill_job" />
+  </action>
+
+
+ <action name = "Create_External_Tables">
+      <hive xmlns = "uri:oozie:hive-action:0.4">
+         <job-tracker>${jobTracker}</job-tracker>
+         <name-node>${nameNode}</name-node>
+         <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+         <script>${nameNode}/user/maria_dev/Credit_Card_System/223_oozie/223_Populate_External_Tables_with_HIVE.txt</script>
+      </hive>
+      <ok to = "Create_Internal_Tables" />
+     <error to = "kill_job" />
+  </action>
+
+
+    <action name = "Create_Internal_Tables">
+      <hive xmlns = "uri:oozie:hive-action:0.4">
+         <job-tracker>${jobTracker}</job-tracker>
+         <name-node>${nameNode}</name-node>
+         <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+         <script>${nameNode}/user/maria_dev/Credit_Card_System/223_oozie/223_Populate_Internal_Partitioned_Tables_with_HIVE.txt</script>
+      </hive>
+      <ok to = "end" />
+      <error to = "kill_job" />
+   </action>
+
+
+ <kill name = "kill_job">
+ <message>Job failed</message>
+ </kill>
+
+ <end name = "end" />
+
+</workflow-app>

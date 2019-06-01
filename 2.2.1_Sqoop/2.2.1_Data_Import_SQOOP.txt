@@ -1,0 +1,40 @@
+
+/* Import Branch MySQL table  into HDFS according to mapping instructions*/
+sqoop import  --connect jdbc:mysql://localhost/CDW_SAPP --driver  com.mysql.jdbc.Driver --username root --password password 
+--query "SELECT BRANCH_CODE,BRANCH_NAME,BRANCH_STREET,BRANCH_CITY,BRANCH_STATE, IFNULL(BRANCH_ZIP,11111) BRANCH_ZIP,
+CONCAT('(',SUBSTRING(CONVERT(BRANCH_PHONE,UNSIGNED INTEGER),1,3),')',SUBSTRING(CONVERT(BRANCH_PHONE,UNSIGNED INTEGER),4,3),'-',SUBSTRING(CONVERT(BRANCH_PHONE,UNSIGNED INTEGER),7,4)) BRANCH_PHONE, LAST_UPDATED FROM CDW_SAPP_BRANCH WHERE \$CONDITIONS" 
+--fields-terminated-by '|'
+--delete-target-dir --target-dir /user/maria_dev/Credit_Card_System/External/CDW_SAPP_BRANCH  -m 1 --as-textfile
+
+
+
+
+
+/* Import CreditCard MySQL Table into HDFS according to mapping instructions */
+sqoop import  --connect jdbc:mysql://localhost/CDW_SAPP --driver  com.mysql.jdbc.Driver --username root --password password 
+--query "SELECT CREDIT_CARD_NO AS CUST_CC_NO, CONCAT(YEAR,LPAD(MONTH,2,0),LPAD(DAY,2,0)) TIMEID, CUST_SSN, BRANCH_CODE, TRANSACTION_TYPE, TRANSACTION_VALUE, TRANSACTION_ID FROM CDW_SAPP_CREDITCARD  WHERE \$CONDITIONS" 
+--fields-terminated-by '|'
+--delete-target-dir --target-dir /user/maria_dev/Credit_Card_System/External/CDW_SAPP_CREDITCARD  -m 1 --as-textfile
+
+
+
+/*Import Customer MySQL table into HDFS according to mapping instructions */
+
+sqoop import  --connect jdbc:mysql://localhost/CDW_SAPP --driver  com.mysql.jdbc.Driver --username root --password password 
+--query "SELECT CONVERT(SSN,UNSIGNED INTEGER) CUST_SSN,CONCAT(UCASE(SUBSTRING(FIRST_NAME, 1, 1)),LOWER(SUBSTRING(FIRST_NAME, 2))) CUST_F_NAME,LOWER(SUBSTRING(MIDDLE_NAME,1)) CUST_M_NAME,
+CONCAT(UCASE(SUBSTRING(LAST_NAME, 1, 1)),LOWER(SUBSTRING(LAST_NAME, 2))) CUST_L_NAME,CREDIT_CARD_NO AS CUST_CC_NO, CONCAT(STREET_NAME,', Apartment ',APT_NO)  CUST_STREET,
+CUST_CITY,CUST_STATE,CUST_COUNTRY,CONVERT(CUST_ZIP,UNSIGNED INTEGER)  CUST_ZIP,
+CONCAT(SUBSTRING(CONVERT(CUST_PHONE,CHAR),1,3),'-',SUBSTRING(CONVERT(CUST_PHONE,CHAR),4,4)) CUST_PHONE, CUST_EMAIL, LAST_UPDATED FROM CDW_SAPP_CUSTOMER WHERE SSN REGEXP '^-?[0-9]+$' AND \$CONDITIONS" 
+--fields-terminated-by '|' 
+--delete-target-dir --target-dir /user/maria_dev/Credit_Card_System/External/CDW_SAPP_CUSTOMER  -m 1 --as-textfile
+
+
+
+
+/* Import TIME MySQL table into HDFS according to mapping instructions */
+sqoop import  --connect jdbc:mysql://localhost/CDW_SAPP --driver  com.mysql.jdbc.Driver --username root --password password 
+--query "SELECT CONCAT(YEAR,LPAD(MONTH,2,0),LPAD(DAY,2,0))  TIMEID,DAY,MONTH, 
+CASE WHEN MONTH<4 AND MONTH>0 THEN 'Q01' WHEN MONTH>=4 AND MONTH<7 THEN 'Q02' WHEN MONTH>=7 AND MONTH <10 THEN 'Q03' ELSE 'Q04' END QUARTER, YEAR
+FROM  CDW_SAPP_CREDITCARD WHERE \$CONDITIONS"
+--fields-terminated-by '|' 
+--delete-target-dir --target-dir /user/maria_dev/Credit_Card_System/External/CDW_SAPP_TIME  -m 1 --as-textfile

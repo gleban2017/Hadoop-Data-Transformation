@@ -1,0 +1,140 @@
+
+------------ create BRANCH Internal Table ----------------------------------------------------
+
+drop table cdw_sapp_d_branch;
+
+create table cdw_sapp_d_branch
+ ( branch_code int, 
+   branch_name VARCHAR(25),
+   branch_street VARCHAR(30),
+   branch_city VARCHAR(30),
+   branch_zip int,
+   branch_phone VARCHAR(13),
+   last_updated TIMESTAMP ) 
+partitioned by (branch_state  varchar(30))
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+
+-----Overlay data from EXTERNAL Branch table-----------------------
+SET hive.exec.dynamic.partition      = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+
+insert into table cdw_sapp_d_branch partition (branch_state) 
+select branch_code, branch_name, branch_street, branch_city, 
+        branch_zip,branch_phone,   last_updated, 
+       branch_state 
+from cdw_sapp_branch; 
+
+
+
+
+
+
+
+
+
+
+
+
+------------ Create CreditCard Internal Partitioned Table-------------------------------------------------
+
+
+
+drop table cdw_sapp_d_creditcard;
+
+create  table cdw_sapp_d_creditcard
+ ( 
+	CUST_CC_NO STRING,
+	TIMEID VARCHAR(8),
+	CUST_SSN INT,
+	BRANCH_CODE INT,
+	TRANSACTION_VALUE DECIMAL(20,3),
+	TRANSACTION_ID INT
+)
+partitioned by (TRANSACTION_TYPE VARCHAR(30))
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+
+-----Overlay data from EXTERNAL CreditCard table-----------------------
+SET hive.exec.dynamic.partition      = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+
+insert into table cdw_sapp_d_creditcard partition (TRANSACTION_TYPE) 
+select CUST_CC_NO,TIMEID,CUST_SSN,BRANCH_CODE,TRANSACTION_VALUE,TRANSACTION_ID,TRANSACTION_TYPE
+from cdw_sapp_creditcard; 
+
+
+
+
+
+
+
+
+
+----------------- Create Customer Internal Partitioned Table ------------------------------------------------
+
+
+drop table cdw_sapp_d_customer;
+
+create table cdw_sapp_d_customer
+ ( 
+	CUST_SSN INT,
+	CUST_F_NAME VARCHAR(40),
+   	CUST_M_NAME VARCHAR(40),
+   	CUST_L_NAME VARCHAR(40),
+     	CUST_CC_NO String,
+      	CUST_ADDRESS String,
+   	CUST_CITY VARCHAR(30),
+   	CUST_COUNTRY VARCHAR(30),
+   	CUST_ZIP INT,
+   	CUST_PHONE VARCHAR(8), 
+   	CUST_EMAIL VARCHAR(40),
+   	LAST_UPDATED TIMESTAMP ) 
+partitioned by (CUST_STATE VARCHAR(30))
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE; 
+
+
+------------Copy data from Customer External Table----------------
+
+SET hive.exec.dynamic.partition      = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+
+insert into table cdw_sapp_d_customer partition (CUST_STATE) 
+select CUST_SSN,CUST_F_NAME, CUST_M_NAME, CUST_L_NAME,CUST_CC_NO,CUST_ADDRESS,CUST_CITY,
+   	CUST_COUNTRY,CUST_ZIP,CUST_PHONE,CUST_EMAIL,LAST_UPDATED,CUST_STATE
+from cdw_sapp_customer; 
+
+
+  
+
+
+
+------------------------------- Create TIME Internal Table------------------------------------------------------------------------
+
+drop table cdw_sapp_d_time;
+
+create TABLE cdw_sapp_d_time 
+( TIMEID VARCHAR(8),
+DAY INT, 
+  MONTH INT, 
+  YEAR INT)
+partitioned by (QUARTER VARCHAR(8))
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+  
+
+------------Copy data from Time External Table----------------
+
+SET hive.exec.dynamic.partition      = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+
+insert into table cdw_sapp_d_time partition (QUARTER) 
+select TIMEID,DAY,MONTH,YEAR,QUARTER
+from cdw_sapp_time; 

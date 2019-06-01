@@ -1,0 +1,20 @@
+
+----------Update Customer Base Table--------------
+
+CREATE TABLE customer_reporting_table AS
+SELECT t1.* FROM
+(SELECT * FROM 224_customer_base
+UNION ALL
+SELECT * FROM 224_customer_incremental) t1
+JOIN
+(SELECT cust_ssn, max(last_updated) max_modified FROM
+(SELECT * FROM 224_customer_base
+UNION ALL
+SELECT * FROM 224_customer_incremental) t2
+GROUP BY cust_ssn) s
+ON t1.cust_ssn = s.cust_ssn AND t1.last_updated = s.max_modified;
+
+INSERT OVERWRITE TABLE 224_customer_base SELECT * FROM customer_reporting_table;
+drop table customer_reporting_table;
+
+

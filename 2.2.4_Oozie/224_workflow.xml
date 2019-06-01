@@ -1,0 +1,166 @@
+<workflow-app xmlns = "uri:oozie:workflow:0.2" name = "Extracting and modifying data from SQL">
+<start to = "Execute_Branch_SqoopJob_Incremental" />
+
+
+
+   <action name="Execute_Branch_SqoopJob_Incremental">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+         <prepare>
+               <delete path="hdfs://sandbox.hortonworks.com:8020/user/maria_dev/Credit_Card_System/224_Task/224_External"/>
+         </prepare>
+         <configuration>
+         	<property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+          </property>
+         </configuration>       
+        <command>job --exec 224_10_branchSqoopJob_Incremental --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop</command>
+        <archive>${javaJarPath}</archive>
+    </sqoop>
+   <ok to="Execute_Customer_SqoopJob_Incremental"/>
+   <error to = "kill_job" />
+  </action>
+  
+  
+       <action name="Execute_Customer_SqoopJob_Incremental">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+        <command>job --exec 224_10_CustomerSqoopJob_Incremental --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop</command>
+        <archive>${javaJarPath}</archive>
+    </sqoop>
+   <ok to="Execute_CC_SqoopJob_Incremental"/>
+   <error to = "kill_job" />
+  </action>
+  
+  
+  <action name="Execute_CC_SqoopJob_Incremental">
+    <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+        <command>job --exec 224_10_ccSqoopJob_Incremental --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop</command>
+        <archive>${javaJarPath}</archive>
+    </sqoop>
+   <ok to="Base_Table_Exist"/>
+   <error to = "kill_job" />
+</action>
+
+
+   <decision name = "Base_Table_Exist">
+      <switch>
+         <case to = "Create_External_Tables">
+            ${fs:exists('/user/maria_dev/Credit_Card_System/224_Task/224_Base') eq 'false'}</case>
+         <default to = "Branch_Table_Exist" />
+      </switch>
+  </decision>
+
+
+ <action name = "Create_External_Tables">
+      <hive xmlns = "uri:oozie:hive-action:0.4">
+         <job-tracker>${jobTracker}</job-tracker>
+         <name-node>${nameNode}</name-node>
+         <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+         <script>${nameNode}/user/maria_dev/Credit_Card_System/224_Task/224_oozie/224_Populate_External_Tables_with_HIVE.txt</script>
+      </hive>
+      <ok to = "Create_Internal_Tables" />
+     <error to = "kill_job" />
+  </action>
+  
+  
+
+
+   <action name = "Create_Internal_Tables">
+      <hive xmlns = "uri:oozie:hive-action:0.4">
+         <job-tracker>${jobTracker}</job-tracker>
+         <name-node>${nameNode}</name-node>
+         <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+         <script>${nameNode}/user/maria_dev/Credit_Card_System/224_Task/224_oozie/224_Populate_Internal_Tables_with_HIVE.txt</script>
+      </hive>
+      <ok to = "end" />
+      <error to = "kill_job" />
+   </action>
+  
+  
+  
+  <decision name = "Branch_Table_Exist">
+      <switch>
+         <case to = "Customer_Table_Exist">
+            ${fs:exists('/user/maria_dev/Credit_Card_System/224_Task/224_External/CDW_SAPP_BRANCH') eq 'false'}</case>
+         <default to = "Merge_new_branch_data" />
+      </switch>
+  </decision>
+
+ 
+ <action name = "Merge_new_branch_data">
+ <hive xmlns = "uri:oozie:hive-action:0.4">
+ <job-tracker>${jobTracker}</job-tracker>
+ <name-node>${nameNode}</name-node>
+ <script>${nameNode}/user/maria_dev/Credit_Card_System/224_Task/224_oozie/224_merge_new_BRANCH_data.txt</script>
+ </hive>
+ <ok to = "Customer_Table_Exist" />
+ <error to = "kill_job" />
+ </action>
+
+
+  <decision name = "Customer_Table_Exist">
+      <switch>
+         <case to = "CC_Table_Exist">
+            ${fs:exists('/user/maria_dev/Credit_Card_System/224_Task/224_External/CDW_SAPP_CUSTOMER') eq 'false'}</case>
+         <default to = "Merge_new_customer_data" />
+      </switch>
+  </decision>
+  
+  
+ <action name = "Merge_new_customer_data">
+ <hive xmlns = "uri:oozie:hive-action:0.4">
+ <job-tracker>${jobTracker}</job-tracker>
+ <name-node>${nameNode}</name-node>
+ <script>${nameNode}/user/maria_dev/Credit_Card_System/224_Task/224_oozie/224_merge_new_CUSTOMER_data.txt</script>
+ </hive>
+ <ok to = "CC_Table_Exist" />
+ <error to = "kill_job" />
+ </action>
+
+
+  <decision name = "CC_Table_Exist">
+      <switch>
+         <case to = "end">
+            ${fs:exists('/user/maria_dev/Credit_Card_System/224_Task/224_External/CDW_SAPP_CREDITCARD') eq 'false'}</case>
+         <default to = "Merge_new_CC_TIME_data" />
+      </switch>
+  </decision>
+
+
+ <action name = "Merge_new_CC_TIME_data">
+ <hive xmlns = "uri:oozie:hive-action:0.4">
+ <job-tracker>${jobTracker}</job-tracker>
+ <name-node>${nameNode}</name-node>
+ <script>${nameNode}/user/maria_dev/Credit_Card_System/224_Task/224_oozie/224_merge_new_CC_TIME_data.txt</script>
+ </hive>
+ <ok to = "end" />
+ <error to = "kill_job" />
+ </action>
+
+
+
+  
+
+ <kill name = "kill_job">
+ <message>Job failed</message>
+ </kill>
+
+ <end name = "end" />
+
+</workflow-app>

@@ -1,0 +1,20 @@
+
+---------Update Branch Base Table--------------
+
+CREATE TABLE branch_reporting_table AS
+SELECT t1.* FROM
+(SELECT * FROM 224_branch_base
+UNION ALL
+SELECT * FROM 224_branch_incremental) t1
+JOIN
+(SELECT branch_code, max(last_updated) max_modified FROM
+(SELECT * FROM 224_branch_base
+UNION ALL
+SELECT * FROM 224_branch_incremental) t2
+GROUP BY branch_code) s
+ON t1.branch_code = s.branch_code AND t1.last_updated = s.max_modified;
+
+
+
+INSERT OVERWRITE TABLE 224_branch_base SELECT * FROM branch_reporting_table;
+drop table branch_reporting_table;

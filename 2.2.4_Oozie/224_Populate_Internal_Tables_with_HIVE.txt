@@ -1,0 +1,143 @@
+
+------------ create BRANCH Initial Internal Base Table ----------------------------------------------------
+
+drop table 224_branch_base;
+
+create table 224_branch_base
+ ( branch_code int, 
+   branch_name VARCHAR(25),
+   branch_street VARCHAR(30),
+   branch_city VARCHAR(30),
+   branch_state  varchar(30),
+   branch_zip int,
+   branch_phone VARCHAR(13),
+   last_updated TIMESTAMP ) 
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE
+location "/user/maria_dev/Credit_Card_System/224_Task/224_Base/CDW_SAPP_BRANCH_Base";
+
+
+
+insert into table 224_branch_base
+select branch_code, branch_name, branch_street, branch_city, branch_state,branch_zip,branch_phone,last_updated
+from 224_branch_incremental;
+
+
+
+
+
+
+
+
+
+
+
+
+------------ Create CreditCard Initital Internal Base Table-------------------------------------------------
+
+
+
+drop table 224_creditcard_base;
+
+create  table 224_creditcard_base
+ ( 
+	CUST_CC_NO STRING,
+	TIMEID VARCHAR(8),
+	CUST_SSN INT,
+	BRANCH_CODE INT,
+	TRANSACTION_TYPE VARCHAR(30),
+	TRANSACTION_VALUE DECIMAL(20,3),
+	TRANSACTION_ID INT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE
+location "/user/maria_dev/Credit_Card_System/224_Task/224_Base/CDW_SAPP_CREDITCARD_Base";
+
+
+-----Overlay data from EXTERNAL CreditCard table-----------------------
+
+
+insert into table 224_creditcard_base
+select CUST_CC_NO,TIMEID,CUST_SSN,BRANCH_CODE,TRANSACTION_TYPE,TRANSACTION_VALUE,TRANSACTION_ID
+from 224_creditcard_incremental; 
+
+
+
+
+
+
+
+
+
+----------------- Create Customer Initial Internal Base Table ------------------------------------------------
+
+
+drop table 224_customer_base;
+
+create table 224_customer_base
+ ( 
+	CUST_SSN INT,
+	CUST_F_NAME VARCHAR(40),
+   	CUST_M_NAME VARCHAR(40),
+   	CUST_L_NAME VARCHAR(40),
+     	CUST_CC_NO String,
+      	CUST_ADDRESS String,
+   	CUST_CITY VARCHAR(30),
+   	CUST_STATE VARCHAR(30),
+   	CUST_COUNTRY VARCHAR(30),
+   	CUST_ZIP INT,
+   	CUST_PHONE VARCHAR(8), 
+   	CUST_EMAIL VARCHAR(40),
+   	LAST_UPDATED TIMESTAMP ) 
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+STORED AS TEXTFILE 
+location "/user/maria_dev/Credit_Card_System/224_Task/224_Base/CDW_SAPP_CUSTOMER_Base"; 
+
+
+------------Copy data from Customer External Table----------------
+
+
+insert into table 224_customer_base
+select CUST_SSN,CUST_F_NAME, CUST_M_NAME, CUST_L_NAME,CUST_CC_NO,CUST_ADDRESS,CUST_CITY,CUST_STATE,CUST_COUNTRY,CUST_ZIP,CUST_PHONE,CUST_EMAIL,LAST_UPDATED
+from 224_customer_incremental; 
+
+
+  
+
+
+
+------------------------------- Create TIME Initial Internal Base Table------------------------------------------------------------------------
+
+drop table 224_time_base;
+
+create TABLE 224_time_base
+(	TIMEID VARCHAR(8),
+	DAY INT,
+	MONTH INT,
+	QUARTER VARCHAR(8),
+	YEAR INT)
+	ROW FORMAT DELIMITED
+	FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n'
+	STORED AS TEXTFILE 
+	location "/user/maria_dev/Credit_Card_System/224_Task/224_Base/CDW_SAPP_TIME_Base";
+
+
+
+
+
+insert into 224_time_base
+SELECT
+   timeid,
+   substring(timeid, 7, 2) AS day, 
+   substring(timeid, 5, 2) AS month,
+   (case 
+    when substring(timeid, 5, 2) BETWEEN 1 AND 3 then "Q1" 
+    when substring(timeid, 5, 2) BETWEEN 4 AND 6 then "Q2" 
+    when substring(timeid, 5, 2) BETWEEN 7 AND 9 then "Q3" 
+    when substring(timeid, 5, 2) BETWEEN 10 AND 12 then "Q4" 
+    end) quarter,
+    substring(timeid, 1, 4) AS year 
+from 224_creditcard_base;
